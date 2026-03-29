@@ -126,11 +126,15 @@ def monthes_permutation_feature_importance(model:tf.keras.Model,dataset:pd.DataF
             month_data.append(all_data[ind].copy())
             if dt.date()>=high_time_border:
                 break
-        time_data.append(np.array(month_data.copy()))
+        if len(month_data.copy())!=0:
+            time_data.append(np.array(month_data.copy()))
+        print(len(time_data))
         time_data_x=[]
         time_data_y=[]
         for ind,month_data in enumerate(time_data):
             print(ind)
+            if ind>11:
+                break
             time_data_x.append(np.array([month_data[i:time_length+i] for i in range(month_data.shape[0]-time_length)]))
             time_data_y.append(np.array([month_data[time_length+i] for i in range(month_data.shape[0]-time_length)]))
         fi_for_months=[]
@@ -138,6 +142,7 @@ def monthes_permutation_feature_importance(model:tf.keras.Model,dataset:pd.DataF
             fi=permutation_feature_importance(model,time_data_x[ind],time_data_y[ind],1)
             fi=np.abs(fi)
             fi_for_months.append(fi.copy())
+        
         fi_for_months=np.array(fi_for_months)
         return fi_for_months
         

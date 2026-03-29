@@ -17,7 +17,7 @@ class CompressedConvAutoencoder(tf.keras.Model):
             tf.keras.layers.Conv2D(32, kernel_size=3, strides=2,activation="relu"),
             tf.keras.layers.Conv2D(16, kernel_size=3, strides=2,activation="relu"),
             tf.keras.layers.Conv2D(8, kernel_size=3, strides=2,activation="relu"),
-            tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(100, activation='relu'),
             tf.keras.layers.Dense(80, activation='relu'),
             tf.keras.layers.Dense(bottleneck_dim), 

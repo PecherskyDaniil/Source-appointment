@@ -12,17 +12,24 @@ from models.ConvAutoencoder import ConvAutoencoder
 from models.CompressedConvAutoencoder import CompressedConvAutoencoder
 from models.LSTMAutoencoder import LSTMAutoencoder
 from viz.charts import create_feature_importance_chart,create_feature_importance_map,draw_month_maps
+from pathlib import Path
+from tensorflow.keras.models import load_model
+if not os.path.exists("./output"):  
+    os.makedirs("./output")  
 # Загрузка данных из файла
 dataset_path,coords_path=choose_files()
 main_dataset=Dataset(dataset_path,coords_path)
-output_path="./output"
+output_path="./output/"+dataset_path.split("/")[-1].replace(".csv","")
+if not os.path.exists(output_path):  
+    os.makedirs(output_path)
+print(output_path)
 in_out_dim=main_dataset.data.columns.size-1
 bottleneck=int(in_out_dim/2.5)
 
 
 print(f"{in_out_dim} входных данных,{bottleneck} - бутылочное горлышко между энкодером и декодером")
 # Подготовка данных для полносвязной модели
-for model_name in ["sequential_model","convolutional_model","lstm_model"]:
+for model_name in ["lstm_model"]:#["sequential_model","convolutional_model","lstm_model"]:
     if model_name=="sequential_model":
         time_length=None
         dataset=main_dataset.make_base_dataset()
@@ -56,14 +63,24 @@ for model_name in ["sequential_model","convolutional_model","lstm_model"]:
     
 
     #Обучение и проверка полносвязной модели
-    model=train_model(model,train_data_x,train_data_y,output_path)
-    results=test_model(model,test_data_x,test_data_y)
-    print(f"Результаты для {model_name} MAE - {results['MAE']} MSE - {results['MSE']}")
-
+    encoder_path = Path(output_path+f"/{model_name}_encoder.keras")
+    decoder_path = Path(output_path+f"/{model_name}_decoder.keras")
+    if encoder_path.is_file() and decoder_path.is_file():
+        model.encoder=load_model(encoder_path)
+        model.decoder=load_model(decoder_path)
+    else:
+        model=train_model(model,train_data_x,train_data_y,output_path)
+        results=test_model(model,test_data_x,test_data_y)
+        print(f"Результаты для {model_name} MAE - {results['MAE']} MSE - {results['MSE']}")
+        with open(output_path+"/result.txt","a") as file:
+            file.write(f"Результаты для {model_name} MAE - {results['MAE']} MSE - {results['MSE']}\n")
     #Вычисление feature importance
-
-    fi_base=permutation_feature_importance(model,train_data_x,train_data_y)
-    np.save(output_path+f"/{model_name}_feature_importance.npy",fi_base)
+    fi_base_path=Path(output_path+f"/{model_name}_feature_importance.npy")
+    if fi_base_path.is_file():
+        fi_base=np.load(fi_base_path)
+    else:
+        fi_base=permutation_feature_importance(model,train_data_x,train_data_y)
+        np.save(fi_base_path,fi_base)
     #Рисование графиков
     if in_out_dim>150:
         print("Слишком много пунктов. Нарисовать график fi не удается.")
@@ -72,7 +89,11 @@ for model_name in ["sequential_model","convolutional_model","lstm_model"]:
 
     create_feature_importance_map(fi_base,main_dataset.coords,main_dataset.data,f"{model_name} feature importance",output_path+f"/{model_name}_fi_map.png")
 
-    fi_monthes=monthes_permutation_feature_importance(model,main_dataset.data,datetime.date(2025, 1, 1),datetime.date(2025, 12, 31),time_length)
-    np.save(output_path+f"/{model_name}_feature_importance_monthes.npy",fi_monthes)
+    fi_monthes_path=Path(output_path+f"/{model_name}_feature_importance_monthes.npy")
+    if fi_monthes_path.is_file():
+        fi_monthes=np.load(fi_monthes_path)
+    else:
+        fi_monthes=monthes_permutation_feature_importance(model,main_dataset.data,datetime.date(2025, 1, 1),datetime.date(2025, 12, 31),time_length)
+        np.save(fi_monthes_path,fi_monthes)
 
     draw_month_maps(fi_monthes,main_dataset.coords,main_dataset.data,f"{model_name} feature importances по месяцам",output_path+f"/{model_name}_feature_importance_monthes.png")
